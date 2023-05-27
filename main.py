@@ -36,6 +36,5 @@ while running:
     screen.fill(BLACK)
     
     pg.draw.circle(screen, WHITE, (ourPlayer.x, ourPlayer.y), 20)
-    pg.display.flip()
     
-    pg.display.update()
+    pg.display.flip()
