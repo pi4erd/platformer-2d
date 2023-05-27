@@ -1,6 +1,7 @@
 import pygame as pg
 from enum import Enum
 from pygame.time import Clock
+from math import sin, radians
 
 from colors import *
 
@@ -16,6 +17,27 @@ pg.display.set_caption("Character movement")
 
 clock = Clock()
 
+def lerp(x1: float, y1: float, k: float) -> float: # really map though
+    return (y1 - x1) * k + x1
+
+class Camera:
+    x=0.0
+    y=0.0
+    Width=WIDTH
+    Height=HEIGHT
+    
+    def __init__(self):
+        self.size=50
+        
+    def follow(self, x, y, k: float):
+        self.x = lerp(self.x, x, k)
+        self.y = lerp(self.y, y, k)
+
+zoom=False
+zoom_out=False
+            
+camera = Camera()
+
 class Collision(Enum):
     TOP = 1
     BOTTOM = 2
@@ -26,7 +48,7 @@ class Collision(Enum):
         return result | collision.value != 0
 
 class Platform:
-    def __init__(self, x, y, w, h):
+    def __init__(self, x: float, y: float, w, h):
         self.x = x
         self.y = y
         self.w = w
@@ -59,8 +81,10 @@ class Platform:
         return (top and bottom and left and right, collision)
 
     def draw(self):
-        global screen
-        pg.draw.rect(screen, WHITE, pg.Rect(self.x, self.y, self.w, self.h))
+        global screen, camera
+        local_x = self.x - (camera.x - WIDTH / 2)
+        local_y = self.y - (camera.y - HEIGHT / 2)
+        pg.draw.rect(screen, WHITE, pg.Rect(local_x, local_y, self.w, self.h))
 
 platforms: list[Platform] = [Platform(200, 400, 100, 100)]
 
@@ -160,8 +184,10 @@ class Player:
         self.vel_y += y
 
     def draw(self): # Draw our player
-        global screen
-        pg.draw.circle(screen, WHITE, (self.x, self.y), self.RADIUS)
+        global screen, camera
+        local_x = self.x - (camera.x - WIDTH / 2)
+        local_y = self.y - (camera.y - HEIGHT / 2)
+        pg.draw.circle(screen, WHITE, (local_x, local_y), self.RADIUS)
         
 def sign(x: float) -> float: # Get sign of a number
     # XXX: Needs a builtin function for efficiency
@@ -180,7 +206,15 @@ while running: # TODO: Move while into a separate function
             if event.key == pg.K_SPACE:
                 if ourPlayer.walled != 0:
                     ourPlayer.jump_wall()
-                    
+            if event.key == pg.K_PLUS or event.key == pg.K_KP_PLUS:
+                zoom_in = True
+            elif event.key == pg.K_MINUS or event.key == pg.K_KP_MINUS:
+                zoom_out = True
+        elif event.type == pg.KEYUP:
+            if event.key == pg.K_PLUS or event.key == pg.K_KP_PLUS:
+                zoom_in = False
+            elif event.key == pg.K_MINUS or event.key == pg.K_KP_MINUS:
+                zoom_out = False
     keys = pg.key.get_pressed() # Check if keys pressed
     
     if ourPlayer.walled == 0: # If doesn't stick to wall
@@ -197,6 +231,7 @@ while running: # TODO: Move while into a separate function
         ourPlayer.jump()
         
     # Update our player
+    camera.follow(ourPlayer.x, ourPlayer.y - 100, 0.1)
     ourPlayer.update()
     
     screen.fill(BLACK) # Set background
@@ -204,7 +239,7 @@ while running: # TODO: Move while into a separate function
     ourPlayer.draw() # Draw player
     for plat in platforms:
         plat.draw()
-    
+        
     pg.display.flip() # Render all changes
     
     clock.tick(60) # Set framerate limit to 60 fps (may change in the future)
