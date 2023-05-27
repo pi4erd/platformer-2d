@@ -23,18 +23,14 @@ def lerp(x1: float, y1: float, k: float) -> float: # really map though
 class Camera:
     x=0.0
     y=0.0
-    Width=WIDTH
-    Height=HEIGHT
+    zoom = 0.9 # TODO: Implement zoom
     
     def __init__(self):
-        self.size=50
+        pass
         
     def follow(self, x, y, k: float):
         self.x = lerp(self.x, x, k)
         self.y = lerp(self.y, y, k)
-
-zoom=False
-zoom_out=False
             
 camera = Camera()
 
@@ -72,13 +68,7 @@ class Platform:
         left = self.check_left(x + r, y)
         right = self.check_right(x - r, y)
         
-        collision = 0
-        collision |= Collision.TOP.value if top else 0
-        collision |= Collision.BOTTOM.value if bottom else 0
-        collision |= Collision.LEFT.value if left else 0
-        collision |= Collision.RIGHT.value if right else 0
-        
-        return (top and bottom and left and right, collision)
+        return top and bottom and left and right
 
     def draw(self):
         global screen, camera
@@ -86,14 +76,14 @@ class Platform:
         local_y = self.y - (camera.y - HEIGHT / 2)
         pg.draw.rect(screen, WHITE, pg.Rect(local_x, local_y, self.w, self.h))
 
-platforms: list[Platform] = [Platform(200, 400, 100, 100)]
+platforms: list[Platform] = [Platform(200, 400, 100, 100), Platform(400, 400, 100, 100)]
 
 class Player:
     ######### Properties
     x = 300.0
     y = 300.0
-    vel_x = 5
-    vel_y = 5
+    vel_x = 0.0
+    vel_y = 0.0
     speed = 1
     grounded = False
     walled = 0
@@ -136,13 +126,39 @@ class Player:
             self.walled = 0
     
     def collide(self):
-        for plat in platforms: # TODO: Collision reaction is wrong
-            (check, col) = plat.check_inside(self.x, self.y, self.RADIUS)
-            if not check: 
+        for plat in platforms:
+            if self.walled != 0:
+                right = plat.check_inside(self.x + self.RADIUS + 0.1, self.y, 0)
+                left = plat.check_inside(self.x - self.RADIUS - 0.1, self.y, 0)
+                top = plat.check_inside(self.x, self.y - self.RADIUS - 0.1, 0)
+                bottom = plat.check_inside(self.x, self.y + self.RADIUS + 0.1, 0)
+                
+                if (not right) and (not left): # FIXME: Multi-platform interaction is impossible
+                    self.walled = 0
+                if self.walled:
+                    break
+                
+        for plat in platforms:
+            check = plat.check_inside(self.x, self.y, self.RADIUS)
+            if not check:
                 break
-            self.vel_x = 0
-            self.vel_y = -1
-            self.grounded = True
+        
+            # FIXME: Walled continues to slide the player down
+            if plat.y > self.y: # Is higher than platform
+                self.y = plat.y - self.RADIUS
+                self.vel_y = 0
+                self.grounded = True
+            elif plat.y + plat.h < self.y: # Is lower than platform
+                self.y = plat.y + plat.h + self.RADIUS
+                self.vel_y = 0
+            elif plat.x > self.x: # Is left of platform
+                self.x = plat.x - self.RADIUS
+                self.vel_x = 0
+                self.walled = -1
+            elif plat.x + plat.w < self.x: # Is right of platform
+                self.x = plat.x + plat.w + self.RADIUS
+                self.vel_x = 0
+                self.walled = 1
 
         self.check_borders()
     
@@ -172,6 +188,7 @@ class Player:
         self.vel_x = self.walled * 20
         self.vel_y = -10
         self.walled = 0
+        self.walled_border = 0
 
     def move(self, x: int|None=None, y: int|None =None): # Move player w/o affecting his velocity
         if x is not None:
@@ -224,7 +241,7 @@ while running: # TODO: Move while into a separate function
             ourPlayer.accelerate(ourPlayer.speed)
     
     # Add additional drag to stop moving continuously w/o pressing the button
-    ourPlayer.accelerate(-sign(ourPlayer.vel_x) * ourPlayer.drag, 0)
+    ourPlayer.accelerate(-sign(ourPlayer.vel_x) * ourPlayer.drag, 0) # FIXME: Drag creates fantom movement bug
     
     # Just jump
     if keys[pg.K_SPACE]:
