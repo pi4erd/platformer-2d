@@ -1,3 +1,6 @@
+#!venv/bin/python3
+# This code only runs on python v3.10+
+
 import pygame as pg
 from enum import Enum
 from pygame.time import Clock
@@ -12,7 +15,7 @@ HEIGHT = 720
 
 FLOOR = 500
 
-screen= pg.display.set_mode((WIDTH, HEIGHT), vsync = 1)
+screen = pg.display.set_mode((WIDTH, HEIGHT), vsync = 1)
 pg.display.set_caption("Character movement")
 
 clock = Clock()
